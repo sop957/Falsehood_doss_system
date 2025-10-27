@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赛博朋克虚拟操作系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+
+        body {
+            background: #0a160a;
+            color: #00ff00;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 扫描线效果 */
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(transparent 50%, rgba(0, 255, 0, 0.03) 50%);
+            background-size: 100% 4px;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        /* 网格背景 */
+        .grid-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 0, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 0, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            z-index: -1;
+        }
+
+        /* 桌面 */
+        .desktop {
+            height: calc(100vh - 60px);
+            padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            position: relative;
+        }
+
+        /* 桌面图标 */
+        .icon {
+            width: 80px;
+            height: 90px;
+            margin: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .icon:hover {
+            transform: scale(1.1);
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        .icon-img {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 5px;
+            background: rgba(0, 255, 0, 0.2);
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .icon-label {
+            font-size: 12px;
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        /* 任务栏 */
+        .taskbar {
+            height: 60px;
+            background: rgba(10, 22, 10, 0.8);
+            border-top: 1px solid #00ff00;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            position: relative;
+            z-index: 10;
+            box-shadow: 0 -5px 20px rgba(0, 255, 0, 0.2);
+        }
+
+        .start-button {
+            padding: 8px 15px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            cursor: pointer;
+            margin-right: 15px;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+
+        .start-button:hover {
+            background: rgba(0, 255, 0, 0.2);
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        .taskbar-apps {
+            display: flex;
+            flex-grow: 1;
+        }
+
+        .taskbar-app {
+            padding: 8px 15px;
+            margin-right: 5px;
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid transparent;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .taskbar-app.active {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            box-shadow: 0 0 5px #00ff00;
+        }
+
+        .taskbar-app:hover {
+            background: rgba(0, 255, 0, 0.1);
+        }
+
+        .system-tray {
+            display: flex;
+            align-items: center;
+        }
+
+        .time {
+            margin-left: 15px;
+            font-size: 14px;
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        /* 窗口 */
+        .window {
+            position: absolute;
+            background: rgba(10, 22, 10, 0.9);
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            min-width: 300px;
+            min-height: 200px;
+            display: none;
+            z-index: 5;
+            top: 50px;
+            left: 50px;
+        }
+
+        .window.active {
+            display: block;
+        }
+
+        .window-header {
+            padding: 8px 10px;
+            background: rgba(0, 255, 0, 0.1);
+            border-bottom: 1px solid #00ff00;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+        }
+
+        .window-title {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .window-controls {
+            display: flex;
+        }
+
+        .window-control {
+            width: 20px;
+            height: 20px;
+            margin-left: 5px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .window-control:hover {
+            background: rgba(0, 255, 0, 0.2);
+        }
+
+        .window-control.close:hover {
+            background: rgba(255, 0, 0, 0.5);
+        }
+
+        .window-content {
+            padding: 15px;
+            height: calc(100% - 40px);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 应用内容 */
+        .app-content {
+            color: #00ff00;
+        }
+
+        .app-content h2 {
+            margin-bottom: 15px;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        .app-content p {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .file-list {
+            list-style: none;
+        }
+
+        .file-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+            cursor: pointer;
+        }
+
+        .file-list li:hover {
+            background: rgba(0, 255, 0, 0.1);
+        }
+
+        /* 终端样式 */
+        .terminal {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff00;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-line {
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+
+        .terminal-prompt {
+            color: #00ff00;
+        }
+
+        .terminal-input {
+            background: transparent;
+            border: none;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            width: calc(100% - 20px);
+            outline: none;
+        }
+
+        /* DOSS助手样式 - 修复滚动问题 */
+        .doss-terminal {
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #00ff00;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            flex: 1;
+            overflow-y: auto;
+            display: block;
+            height: 100%;
+        }
+
+        .doss-line {
+            margin-bottom: 5px;
+            font-size: 11px;
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .doss-header {
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        /* 进度条样式 */
+        .progress-container {
+            margin: 15px 0;
+            display: none;
+        }
+
+        .progress-title {
+            font-size: 14px;
+            margin-bottom: 5px;
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #00aa00, #00ff00);
+            transition: width 0.1s linear;
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #000;
+            font-weight: bold;
+        }
+
+        /* 霓虹文字效果 */
+        .neon-text {
+            text-shadow: 
+                0 0 5px #00ff00,
+                0 0 10px #00ff00,
+                0 0 15px #00ff00,
+                0 0 20px #00ff00;
+        }
+
+        /* 脉冲动画 */
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        /* 关闭窗口动画 */
+        @keyframes closeWindow {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0.1); opacity: 0; }
+        }
+        
+        .closing {
+            animation: closeWindow 0.2s forwards;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+    
+    <div class="desktop" id="desktop">
+        <!-- 桌面图标 -->
+        <div class="icon" data-app="file-explorer">
+            <div class="icon-img">📁</div>
+            <div class="icon-label">文件管理器</div>
+        </div>
+        <div class="icon" data-app="terminal">
+            <div class="icon-img">⌨️</div>
+            <div class="icon-label">终端</div>
+        </div>
+        <div class="icon" data-app="doss-assistant">
+            <div class="icon-img">⚡</div>
+            <div class="icon-label">DOSS_ASSISTANT</div>
+        </div>
+        <div class="icon" data-app="browser">
+            <div class="icon-img">🌐</div>
+            <div class="icon-label">网络浏览器</div>
+        </div>
+        <div class="icon" data-app="settings">
+            <div class="icon-img">⚙️</div>
+            <div class="icon-label">系统设置</div>
+        </div>
+        <div class="icon" data-app="media">
+            <div class="icon-img">🎵</div>
+            <div class="icon-label">媒体播放器</div>
+        </div>
+        
+        <!-- 应用窗口 -->
+        <div class="window" id="file-explorer-window">
+            <div class="window-header">
+                <div class="window-title">文件管理器</div>
+                <div class="window-controls">
+                    <div class="window-control minimize">_</div>
+                    <div class="window-control maximize">□</div>
+                    <div class="window-control close">×</div>
+                </div>
+            </div>
+            <div class="window-content">
+                <div class="app-content">
+                    <h2>系统文件</h2>
+                    <ul class="file-list">
+                        <li>系统日志</li>
+                        <li>用户文档</li>
+                        <li>程序文件</li>
+                        <li>网络配置</li>
+                        <li>安全协议</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="window" id="terminal-window">
+            <div class="window-header">
+                <div class="window-title">终端 - root@cyber-system</div>
+                <div class="window-controls">
+                    <div class="window-control minimize">_</div>
+                    <div class="window-control maximize">□</div>
+                    <div class="window-control close">×</div>
+                </div>
+            </div>
+            <div class="window-content">
+                <div class="terminal" id="terminal-content">
+                    <div class="terminal-line"><span class="terminal-prompt">root@cyber-system:~$</span> system status</div>
+                    <div class="terminal-line">系统核心: 运行正常</div>
+                    <div class="terminal-line">网络连接: 已加密</div>
+                    <div class="terminal-line">安全协议: 激活</div>
+                    <div class="terminal-line">内存使用: 42%</div>
+                    <div class="terminal-line"><span class="terminal-prompt">root@cyber-system:~$</span> <input type="text" class="terminal-input" id="terminal-input" placeholder="输入命令..."></div>
+                    
+                    <!-- 进度条容器 -->
+                    <div class="progress-container" id="progress-container">
+                        <div class="progress-title">正在获取IP权限</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                            <div class="progress-text" id="progress-text">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- DOSS助手窗口 -->
+        <div class="window" id="doss-assistant-window">
+            <div class="window-header">
+                <div class="window-title">DOSS_ASSISTANT - 攻击模式</div>
+                <div class="window-controls">
+                    <div class="window-control minimize">_</div>
+                    <div class="window-control maximize">□</div>
+                    <div class="window-control close">×</div>
+                </div>
+            </div>
+            <div class="window-content">
+                <div class="doss-terminal" id="doss-terminal-content">
+                    <div class="doss-header">DOSS_ASSISTANT v2.1 - 正在运行...</div>
+                    <!-- 内容将动态生成 -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="window" id="browser-window">
+            <div class="window-header">
+                <div class="window-title">网络浏览器 - 赛博网络</div>
+                <div class="window-controls">
+                    <div class="window-control minimize">_</div>
+                    <div class="window-control maximize">□</div>
+                    <div class="window-control close">×</div>
+                </div>
+            </div>
+            <div class="window-content">
+                <div class="app-content">
+                    <h2>赛博网络</h2>
+                    <p>连接到全球数据网络...</p>
+                    <p>加密连接已建立</p>
+                    <p>访问权限: 等级3</p>
+                    <p>数据流: 稳定</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="window" id="settings-window">
+            <div class="window-header">
+                <div class="window-title">系统设置</div>
+                <div class="window-controls">
+                    <div class="window-control minimize">_</div>
+                    <div class="window-control maximize">□</div>
+                    <div class="window-control close">×</div>
+                </div>
+            </div>
+            <div class="window-content">
+                <div class="app-content">
+                    <h2>系统配置</h2>
+                    <p>界面主题: 赛博朋克</p>
+                    <p>安全级别: 高</p>
+                    <p>网络协议: IPv6</p>
+                    <p>数据加密: AES-256</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="window" id="media-window">
+            <div class="window-header">
+                <div class="window-title">媒体播放器</div>
+                <div class="window-controls">
+                    <div class="window-control minimize">_</div>
+                    <div class="window-control maximize">□</div>
+                    <div class="window-control close">×</div>
+                </div>
+            </div>
+            <div class="window-content">
+                <div class="app-content">
+                    <h2>音频流</h2>
+                    <p>当前播放: 赛博音轨 #7</p>
+                    <p>格式: 数字音频</p>
+                    <p>比特率: 320 kbps</p>
+                    <p>状态: 播放中</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="taskbar">
+        <div class="start-button">开始</div>
+        <div class="taskbar-apps" id="taskbar-apps">
+            <!-- 任务栏应用将动态添加 -->
+        </div>
+        <div class="system-tray">
+            <div class="time" id="time">00:00:00</div>
+        </div>
+    </div>
+
+    <script>
+        // 更新系统时间
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            document.getElementById('time').textContent = timeString;
+        }
+        
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // 窗口管理
+        let activeWindow = null;
+        let zIndex = 5;
+        let closedWindows = new Set(); // 跟踪已关闭的窗口
+        let dossInterval = null; // DOSS助手输出间隔
+        
+        // 桌面图标点击事件
+        document.querySelectorAll('.icon').forEach(icon => {
+            icon.addEventListener('click', function() {
+                const appName = this.getAttribute('data-app');
+                openWindow(appName);
+            });
+        });
+        
+        // 打开窗口函数
+        function openWindow(appName) {
+            // 如果窗口已关闭，需要重新初始化
+            if (closedWindows.has(appName)) {
+                closedWindows.delete(appName);
+            }
+            
+            const window = document.getElementById(`${appName}-window`);
+            
+            // 重置窗口状态
+            window.classList.remove('closing');
+            window.style.display = 'block';
+            window.classList.add('active');
+            zIndex++;
+            window.style.zIndex = zIndex;
+            activeWindow = window;
+            
+            // 添加到任务栏
+            addToTaskbar(appName, window);
+            
+            // 窗口拖动功能
+            makeWindowDraggable(window);
+            
+            // 如果是终端窗口，聚焦输入框
+            if (appName === 'terminal') {
+                setTimeout(() => {
+                    const terminalInput = document.getElementById('terminal-input');
+                    if (terminalInput) {
+                        terminalInput.focus();
+                    }
+                }, 100);
+            }
+            
+            // 如果是DOSS助手窗口，启动输出
+            if (appName === 'doss-assistant') {
+                startDossOutput();
+            }
+        }
+        
+        // 添加到任务栏
+        function addToTaskbar(appName, window) {
+            const taskbarApps = document.getElementById('taskbar-apps');
+            const appId = `taskbar-${appName}`;
+            
+            // 如果应用已经在任务栏，则激活它
+            let existingApp = document.getElementById(appId);
+            if (existingApp) {
+                document.querySelectorAll('.taskbar-app').forEach(app => {
+                    app.classList.remove('active');
+                });
+                existingApp.classList.add('active');
+                return;
+            }
+            
+            // 否则创建新的任务栏应用
+            const appElement = document.createElement('div');
+            appElement.id = appId;
+            appElement.className = 'taskbar-app';
+            appElement.textContent = getAppDisplayName(appName);
+            
+            appElement.addEventListener('click', function() {
+                // 如果窗口已关闭，不要尝试激活它
+                if (closedWindows.has(appName)) {
+                    return;
+                }
+                
+                // 切换窗口显示状态
+                if (window.classList.contains('active')) {
+                    window.classList.remove('active');
+                    this.classList.remove('active');
+                    
+                    // 如果是DOSS助手窗口，停止输出
+                    if (appName === 'doss-assistant') {
+                        stopDossOutput();
+                    }
+                } else {
+                    // 关闭其他窗口
+                    document.querySelectorAll('.window.active').forEach(win => {
+                        win.classList.remove('active');
+                    });
+                    document.querySelectorAll('.taskbar-app.active').forEach(app => {
+                        app.classList.remove('active');
+                    });
+                    
+                    window.classList.add('active');
+                    this.classList.add('active');
+                    zIndex++;
+                    window.style.zIndex = zIndex;
+                    activeWindow = window;
+                    
+                    // 如果是终端窗口，聚焦输入框
+                    if (appName === 'terminal') {
+                        setTimeout(() => {
+                            const terminalInput = document.getElementById('terminal-input');
+                            if (terminalInput) {
+                                terminalInput.focus();
+                            }
+                        }, 100);
+                    }
+                    
+                    // 如果是DOSS助手窗口，启动输出
+                    if (appName === 'doss-assistant') {
+                        startDossOutput();
+                    }
+                }
+            });
+            
+            taskbarApps.appendChild(appElement);
+            appElement.classList.add('active');
+        }
+        
+        // 获取应用显示名称
+        function getAppDisplayName(appName) {
+            const names = {
+                'file-explorer': '文件管理器',
+                'terminal': '终端',
+                'doss-assistant': 'DOSS_ASSISTANT',
+                'browser': '浏览器',
+                'settings': '设置',
+                'media': '媒体播放器'
+            };
+            return names[appName] || appName;
+        }
+        
+        // 窗口拖动功能
+        function makeWindowDraggable(window) {
+            const header = window.querySelector('.window-header');
+            let isDragging = false;
+            let currentX;
+            let currentY;
+            let initialX;
+            let initialY;
+            let xOffset = 0;
+            let yOffset = 0;
+            
+            header.addEventListener("mousedown", dragStart);
+            document.addEventListener("mousemove", drag);
+            document.addEventListener("mouseup", dragEnd);
+            
+            function dragStart(e) {
+                initialX = e.clientX - xOffset;
+                initialY = e.clientY - yOffset;
+                
+                if (e.target === header || header.contains(e.target)) {
+                    isDragging = true;
+                    
+                    // 将窗口置于最前
+                    zIndex++;
+                    window.style.zIndex = zIndex;
+                    activeWindow = window;
+                    
+                    // 更新任务栏状态
+                    document.querySelectorAll('.taskbar-app').forEach(app => {
+                        app.classList.remove('active');
+                    });
+                    const appName = window.id.replace('-window', '');
+                    const taskbarApp = document.getElementById(`taskbar-${appName}`);
+                    if (taskbarApp) {
+                        taskbarApp.classList.add('active');
+                    }
+                }
+            }
+            
+            function drag(e) {
+                if (isDragging) {
+                    e.preventDefault();
+                    currentX = e.clientX - initialX;
+                    currentY = e.clientY - initialY;
+                    
+                    xOffset = currentX;
+                    yOffset = currentY;
+                    
+                    setTranslate(currentX, currentY, window);
+                }
+            }
+            
+            function setTranslate(xPos, yPos, el) {
+                el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
+            }
+            
+            function dragEnd(e) {
+                initialX = currentX;
+                initialY = currentY;
+                isDragging = false;
+            }
+        }
+        
+        // 窗口控制按钮功能
+        document.querySelectorAll('.window-control').forEach(control => {
+            control.addEventListener('click', function() {
+                const window = this.closest('.window');
+                const appName = window.id.replace('-window', '');
+                const taskbarApp = document.getElementById(`taskbar-${appName}`);
+                
+                if (this.classList.contains('minimize')) {
+                    window.classList.remove('active');
+                    if (taskbarApp) {
+                        taskbarApp.classList.remove('active');
+                    }
+                    
+                    // 如果是DOSS助手窗口，停止输出
+                    if (appName === 'doss-assistant') {
+                        stopDossOutput();
+                    }
+                } else if (this.classList.contains('maximize')) {
+                    if (window.style.width === '90vw' && window.style.height === '80vh') {
+                        window.style.width = '';
+                        window.style.height = '';
+                        window.style.top = '';
+                        window.style.left = '';
+                        window.style.transform = '';
+                    } else {
+                        window.style.width = '90vw';
+                        window.style.height = '80vh';
+                        window.style.top = '5%';
+                        window.style.left = '5%';
+                        window.style.transform = 'translate3d(0, 0, 0)';
+                    }
+                } else if (this.classList.contains('close')) {
+                    // 添加关闭动画
+                    window.classList.add('closing');
+                    
+                    // 标记窗口为已关闭
+                    closedWindows.add(appName);
+                    
+                    // 如果是DOSS助手窗口，停止输出
+                    if (appName === 'doss-assistant') {
+                        stopDossOutput();
+                    }
+                    
+                    // 动画结束后关闭窗口
+                    setTimeout(() => {
+                        window.classList.remove('active');
+                        window.classList.remove('closing');
+                        window.style.display = 'none';
+                        if (taskbarApp) {
+                            taskbarApp.remove();
+                        }
+                    }, 200);
+                }
+            });
+        });
+        
+        // 开始按钮功能
+        document.querySelector('.start-button').addEventListener('click', function() {
+            alert('系统菜单 - 开发中');
+        });
+        
+        // 终端功能增强
+        const terminalInput = document.getElementById('terminal-input');
+        const terminalContent = document.getElementById('terminal-content');
+        const progressContainer = document.getElementById('progress-container');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        
+        // 初始化终端输入处理
+        function initTerminal() {
+            terminalInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const command = this.value.trim();
+                    this.value = '';
+                    
+                    // 添加用户输入到终端
+                    const userInputLine = document.createElement('div');
+                    userInputLine.className = 'terminal-line';
+                    userInputLine.innerHTML = `<span class="terminal-prompt">root@cyber-system:~$</span> ${command}`;
+                    terminalContent.appendChild(userInputLine);
+                    
+                    // 处理特殊命令
+                    if (command === 'doss 127.0.0.1 /s') {
+                        startHackingProgress();
+                    } else if (command === 'help') {
+                        const helpLine = document.createElement('div');
+                        helpLine.className = 'terminal-line';
+                        helpLine.textContent = '可用命令: help, doss 127.0.0.1 /s, clear';
+                        terminalContent.appendChild(helpLine);
+                    } else if (command === 'clear') {
+                        // 清除终端内容，但保留输入行
+                        const lines = terminalContent.querySelectorAll('.terminal-line');
+                        for (let i = 0; i < lines.length - 1; i++) {
+                            if (lines[i].querySelector('.terminal-prompt')) {
+                                lines[i].remove();
+                            }
+                        }
+                        // 隐藏进度条
+                        progressContainer.style.display = 'none';
+                    } else if (command) {
+                        // 添加默认响应
+                        const responseLine = document.createElement('div');
+                        responseLine.className = 'terminal-line';
+                        responseLine.textContent = `命令未找到: ${command}`;
+                        terminalContent.appendChild(responseLine);
+                    }
+                    
+                    // 滚动到底部
+                    setTimeout(() => {
+                        terminalContent.scrollTop = terminalContent.scrollHeight;
+                    }, 10);
+                }
+            });
+        }
+        
+        // 启动黑客进度条
+        function startHackingProgress() {
+            // 显示进度条
+            progressContainer.style.display = 'block';
+            
+            // 重置进度
+            progressFill.style.width = '0%';
+            progressText.textContent = '0%';
+            
+            // 添加开始消息
+            const startLine = document.createElement('div');
+            startLine.className = 'terminal-line';
+            startLine.textContent = '启动DOSS攻击协议... 目标: 127.0.0.1';
+            terminalContent.appendChild(startLine);
+            
+            // 模拟进度
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 1;
+                progressFill.style.width = `${progress}%`;
+                progressText.textContent = `${progress}%`;
+                
+                // 添加一些随机的黑客消息
+                if (progress % 20 === 0) {
+                    const messages = [
+                        '正在绕过防火墙...',
+                        '破解加密协议...',
+                        '获取管理员权限...',
+                        '注入系统漏洞...',
+                        '建立反向连接...'
+                    ];
+                    const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+                    const msgLine = document.createElement('div');
+                    msgLine.className = 'terminal-line';
+                    msgLine.textContent = randomMsg;
+                    terminalContent.appendChild(msgLine);
+                    setTimeout(() => {
+                        terminalContent.scrollTop = terminalContent.scrollHeight;
+                    }, 10);
+                }
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    
+                    // 进度完成后添加完成消息
+                    setTimeout(() => {
+                        const successLine = document.createElement('div');
+                        successLine.className = 'terminal-line';
+                        successLine.textContent = 'IP权限获取成功！系统已完全控制。';
+                        terminalContent.appendChild(successLine);
+                        
+                        // 滚动到底部
+                        setTimeout(() => {
+                            terminalContent.scrollTop = terminalContent.scrollHeight;
+                        }, 10);
+                    }, 500);
+                }
+            }, 115); // 5秒完成 (100 * 50ms = 5000ms)
+        }
+        
+        // DOSS助手功能
+        const dossTerminal = document.getElementById('doss-terminal-content');
+        
+        // 启动DOSS助手输出
+        function startDossOutput() {
+            // 清除之前的输出
+            dossTerminal.innerHTML = '<div class="doss-header">DOSS_ASSISTANT v2.1 - 正在运行...</div>';
+            
+            // 设置间隔输出
+            dossInterval = setInterval(() => {
+                addDossOutput();
+            }, 800); // 每800毫秒输出一次
+        }
+        
+        // 停止DOSS助手输出
+        function stopDossOutput() {
+            if (dossInterval) {
+                clearInterval(dossInterval);
+                dossInterval = null;
+            }
+        }
+        
+        // 添加DOSS输出 - 修复滚动问题
+        function addDossOutput() {
+            const codeLines = [
+                "const randomMsg = messages[Math.floor(Math.random() * messages.length)];",
+                "const msgLine = document.createElement('div');",
+                "msgLine.className = 'terminal-line';",
+                "msgLine.textContent = randomMsg;",
+                "terminalContent.appendChild(msgLine);",
+                "terminalContent.scrollTop = terminalContent.scrollHeight;",
+                "function exploitVulnerability(target) {",
+                "  const payload = generatePayload();",
+                "  return executeAttack(target, payload);",
+                "}",
+                "const backdoor = createBackdoor('127.0.0.1');",
+                "backdoor.listen(8080);",
+                "const sensitiveData = extractData(targetSystem);",
+                "encryptAndExfiltrate(sensitiveData);"
+            ];
+            
+            // 随机选择3-5行代码输出
+            const linesToShow = Math.floor(Math.random() * 3) + 3;
+            for (let i = 0; i < linesToShow; i++) {
+                const randomIndex = Math.floor(Math.random() * codeLines.length);
+                const codeLine = document.createElement('div');
+                codeLine.className = 'doss-line';
+                codeLine.textContent = codeLines[randomIndex];
+                dossTerminal.appendChild(codeLine);
+            }
+            
+            // 强制滚动到底部
+            setTimeout(() => {
+                dossTerminal.scrollTop = dossTerminal.scrollHeight;
+            }, 10);
+            
+            // 随机添加一些攻击状态消息
+            if (Math.random() > 0.7) {
+                const statusMessages = [
+                    "[INFO] Data packet sent successfully!",
+                    "[WARN] Firewall activity detected",
+                    "[DEBUG] Bypass security protocols",
+                    "[ERROR] Connection timed out, retrying...",
+                    "[SUCCESS] Successful exploitation of vulnerability!"
+                ];
+                const statusLine = document.createElement('div');
+                statusLine.className = 'doss-line';
+                statusLine.textContent = statusMessages[Math.floor(Math.random() * statusMessages.length)];
+                dossTerminal.appendChild(statusLine);
+                
+                setTimeout(() => {
+                    dossTerminal.scrollTop = dossTerminal.scrollHeight;
+                }, 10);
+            }
+        }
+        
+        // 初始化终端
+        initTerminal();
+        
+        // 初始打开终端窗口
+        setTimeout(() => {
+            openWindow('terminal');
+        }, 500);
+    </script>
+</body>
+</html>
